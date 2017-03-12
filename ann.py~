@@ -247,6 +247,8 @@ if __name__ == "__main__":
 	nn_model = DenseNet(2,"","L2")
 
 	#nn_model.addlayer('Linear',)
+	nn_model.addlayer('Linear',5)
+	nn_model.addlayer('Linear',3)
 	nn_model.addlayer('Linear',1)
 	x = np.array([  [0,1],
 					[1,0],
