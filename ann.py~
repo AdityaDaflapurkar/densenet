@@ -166,7 +166,7 @@ class Sigmoid:
 	def backward(self, dz,last):
 		s = self.output
 		if last==False:
-			s=np.insert(s,0,1)
+			s=np.insert(s,0,1,axis=1)
 		return dz * s * (1-s)
 
 class Linear:
@@ -177,7 +177,7 @@ class Linear:
 		self.input=np.array([])
 
 	def forward(self, input):
-		input_with_bias=np.insert(input,0,1)
+		input_with_bias=np.insert(input,0,1,axis=1)
 		self.input=input_with_bias
 		return np.dot(input_with_bias.T,self.w)
 
@@ -196,7 +196,7 @@ class L1_loss:
 		pass
 
 	def forward(self, yd, yp):
-		return np.sum(abs(yd-yp))
+		return np.sum(abs(np.mean((yd-yp)))
 
 	def backward(self, yd, yp):	
 		return -np.nan_to_num(abs(yd-yp)/(yd-yp))
@@ -247,8 +247,6 @@ if __name__ == "__main__":
 	nn_model = DenseNet(2,"","L2")
 
 	#nn_model.addlayer('Linear',)
-	nn_model.addlayer('Linear',5)
-	nn_model.addlayer('Linear',3)
 	nn_model.addlayer('Linear',1)
 	x = np.array([  [0,1],
 					[1,0],
@@ -275,13 +273,11 @@ if __name__ == "__main__":
 	#print np.shape(Xi)," ",np.shape(Y)
 
 	for i in xrange(1000):
-		for j in xrange(60):
-			nn_model.train(X[j],Y[j])
-		print "xxxxxxxxxxxxxxxxxxxxxx"
+		nn_model.train(X,Y)
+		
 	
 	x=np.array([  [0,1],
 					[1,1],
 					[1,0],
 					[0,0]  ])
-	for j in xrange(60):
-			print "p : ",nn_model.predict(t[j])," ",tY[j]
+	print "p : ",nn_model.predict(t)," ",tY

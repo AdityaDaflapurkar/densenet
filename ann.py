@@ -29,7 +29,7 @@ class Graph:
 		self.id = input_dim
 		self.oc = optim_config
 		self.lf = loss_fn
-		self.eta = 0.01
+		self.eta = 10
 		self.layers = []
 		self.current_layer_size = input_dim
 		self.output = []
@@ -114,8 +114,8 @@ class Graph:
 	def update(self):
 		for i in xrange(len(self.layers)):
 			if  isinstance(self.layers[i], Linear):
-				self.layers[i].w=(self.layers[i].w)+self.eta*np.outer(self.layers[i].input, self.layers[i].delta)
-
+				self.layers[i].w=(self.layers[i].w)+(self.eta*np.dot(self.layers[i].input.T, self.layers[i].delta))/len(self.layers[i].delta)
+				print len(self.layers[i].delta)," lllllllllllllllllllllll"
 
 
 class ReLU:
@@ -166,7 +166,7 @@ class Sigmoid:
 	def backward(self, dz,last):
 		s = self.output
 		if last==False:
-			s=np.insert(s,0,1)
+			s=np.insert(s,0,1,axis=1)
 		return dz * s * (1-s)
 
 class Linear:
@@ -177,15 +177,15 @@ class Linear:
 		self.input=np.array([])
 
 	def forward(self, input):
-		input_with_bias=np.insert(input,0,1)
+		input_with_bias=np.insert(input,0,1,axis=1)
 		self.input=input_with_bias
-		return np.dot(input_with_bias.T,self.w)
+		return np.dot(input_with_bias,self.w)
 
 	def backward(self, dz, last):
 	
 		if last==False:
-			self.delta=dz[1:]
-			return np.dot(dz[1:],self.w.T)
+			self.delta=dz[:,1:]
+			return np.dot(dz[:,1:],self.w.T)
 		else: 
 			self.delta=dz
 			return np.dot(dz,self.w.T)
@@ -196,7 +196,7 @@ class L1_loss:
 		pass
 
 	def forward(self, yd, yp):
-		return np.sum(abs(yd-yp))
+		return np.sum(abs(np.mean((yd-yp),axis=1)))
 
 	def backward(self, yd, yp):	
 		return -np.nan_to_num(abs(yd-yp)/(yd-yp))
@@ -208,9 +208,11 @@ class L2_loss:
 		pass
 
 	def forward(self, yd, yp):
-		return ((np.sum(yd-yp))**2)/2
+		#print ((np.sum(np.mean(yd-yp)))**2)/2
+		return ((np.sum(np.mean(yd-yp)))**2)/2
 	def backward(self, yd, yp):
-		return (yd-yp)
+		#print np.shape(yd)," ",np.shape(yp)
+		return yd-yp
 
 
 class Cross_Entropy:
@@ -246,8 +248,8 @@ if __name__ == "__main__":
 	
 	nn_model = DenseNet(2,"","L2")
 
-	#nn_model.addlayer('Linear',)
-	nn_model.addlayer('Linear',1)
+	nn_model.addlayer('Sigmoid',4)
+	nn_model.addlayer('Sigmoid',1)
 	x = np.array([  [0,1],
 					[1,0],
 					[1,1],
@@ -259,27 +261,25 @@ if __name__ == "__main__":
 					[0]  ])
 
 
-	c=np.array([2,5,3])
+	c=np.array([[2,5,3]])
 	#error=np.random.uniform(-1,1,[60,1])	
 	
 	X=np.random.uniform(-1,1,[60,2])
 	Xi=np.insert(X,0,1,axis=1)
 	Y=np.dot(Xi,c.T) 	  ### y=c0+5*x1+3*x2+error
 
-	t=np.random.uniform(1,100,[60,2])
+	t=np.random.uniform(-1,1,[60,2])
 	ti=np.insert(t,0,1,axis=1)
 	tY=np.dot(ti,c.T)
 
 	#print np.shape(Xi)," ",np.shape(Y)
 
 	for i in xrange(1000):
-		for j in xrange(60):
-			nn_model.train(X[j],Y[j])
-		print "xxxxxxxxxxxxxxxxxxxxxx"
+		nn_model.train(x,y)
+		
 	
 	x=np.array([  [0,1],
-					[1,1],
 					[1,0],
+					[1,1],
 					[0,0]  ])
-	for j in xrange(60):
-			print "p : ",nn_model.predict(t[j])," ",tY[j]
+	print "p : ",nn_model.predict(x)
