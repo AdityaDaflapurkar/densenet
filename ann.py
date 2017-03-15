@@ -12,6 +12,9 @@ class DenseNet:
 		self.net.addgate(activation, units)
 
 	def train(self, X, Y):
+		if X.ndim==1:			#####TODO checkdim func
+			X = np.reshape(X,(1,len(X)))
+			Y = np.reshape(Y,(1,len(Y)))
 		Y_pred = self.net.forward(X)
 		loss_value = self.net.backward(Y)
 		self.net.update()
@@ -85,12 +88,14 @@ class Graph:
 
 		elif self.lf=='L2':
 			loss=L2_loss()
-			print loss.forward(expected,self.output)
+			#print loss.forward(expected,self.output)
 			delta=loss.backward(expected,self.output)
 			
 		elif self.lf=='Cross_Entropy':
 			loss=Cross_Entropy()
+			print loss.forward(expected,self.output)," : e.f."
 			delta=loss.backward(expected,self.output)
+			#print delta,"ddeeellllllllll"
 		
 		elif self.lf=='SVM':			
 			loss=SVM_loss()
@@ -115,8 +120,6 @@ class Graph:
 		for i in xrange(len(self.layers)):
 			if  isinstance(self.layers[i], Linear):
 				self.layers[i].w=(self.layers[i].w)+(self.eta*np.dot(self.layers[i].input.T, self.layers[i].delta))/len(self.layers[i].delta)
-				print len(self.layers[i].delta)," lllllllllllllllllllllll"
-
 
 class ReLU:
 	# Example class for the ReLU layer. Replicate for other activation types and/or loss functions.
@@ -138,17 +141,32 @@ class ReLU:
 class Softmax:
 	# Example class for the ReLU layer. Replicate for other activation types and/or loss functions.
 	def __init__(self):
-		pass
+		self.tr_siz=0
+		self.output=np.array([])
 
 	def forward(self, input):
-		return np.exp(input)/np.sum(np.exp(input))
+		self.tr_siz=len(input[0])
+		s=np.sum(np.exp(input),axis=1)
+		#print s,"futfiyf"
+		#print np.exp(input),"etbb"
+		self.output = np.exp(input)/np.reshape(s,(len(s),1))
+		return self.output
 
-	def backward(self, dz):
-		res=np.empty(len(dz),len(dz))
-		for i in xrange(len(dz)):
-			for j in xrange(len(dz)):
-				res[i][j]=dz[i]*(self.kronecker_delta(i, j)-dz[j])	
-		return res
+	def backward(self, dz, last):
+		der=np.empty((len(self.output),len(self.output[0]),len(self.output[0])))
+		for k in xrange(len(self.output)):
+			for i in xrange(len(self.output[0])):
+				for j in xrange(len(self.output[0])):
+					der[k][i][j]=self.output[k][i]*(self.kronecker_delta(i, j)-self.output[k][j])
+		
+		#print der,"derrrrrrrrrr"
+		res=[]
+		for k in xrange(len(self.output)):
+			q=np.dot(der[k],dz[k].T)
+			#print q,"qqqqqqqqq"
+			res.append(q)
+		#print np.array(res),"ressssssssssssssss"
+		return np.array(res)
 
 	def kronecker_delta(self, i, j):
 		return int(i==j) 
@@ -221,10 +239,14 @@ class Cross_Entropy:
 		pass
 
 	def forward(self, yd, yp):
-		return -np.sum(yd*np.log(yp)+(1-yd)*np.log(1-yp))
+		#print yd,"lllllllllllll"
+		#print yp,"yyyiiipppiiiiieeeeeeeeee"
+		#print yp-yd,"lossssssssssssssssss"
+		return  np.average(-np.sum(yd*np.log(yp),axis=1))#-(np.sum(yd*np.log(yp)+(1-yd)*np.log(1-yp)))/len(yd)
 
 	def backward(self, yd, yp):
-		return (yp-yd)/(yp*(1-yp))
+		#print yp," ",yd," ",yp*(1-yp)
+		return yd/yp#(yd-yp)/(yp*(1-yp))
 
 class SVM_loss:
 	# Example class for the ReLU layer. Replicate for other activation types and/or loss functions.
@@ -246,19 +268,20 @@ if __name__ == "__main__":
 	
 
 	
-	nn_model = DenseNet(2,"","L2")
+	nn_model = DenseNet(2,"","Cross_Entropy")
 
 	nn_model.addlayer('Sigmoid',4)
-	nn_model.addlayer('Sigmoid',1)
+	nn_model.addlayer('Sigmoid',2)
+	nn_model.addlayer('Softmax',2)
 	x = np.array([  [0,1],
 					[1,0],
 					[1,1],
 					[0,0]  ])
 
-	y = np.array([  [1],
-					[1],
-					[0],
-					[0]  ])
+	y = np.array([  [1,0],
+					[1,0],
+					[0,1],
+					[0,1]  ])
 
 
 	c=np.array([[2,5,3]])
@@ -274,12 +297,11 @@ if __name__ == "__main__":
 
 	#print np.shape(Xi)," ",np.shape(Y)
 
-	for i in xrange(1000):
-		nn_model.train(x,y)
+	for i in xrange(10000):
+		#for j in xrange(4):
+			nn_model.train(x,y)
 		
 	
-	x=np.array([  [0,1],
-					[1,0],
-					[1,1],
-					[0,0]  ])
-	print "p : ",nn_model.predict(x)
+	x=np.array([  [0,0],[1,0],[1,1],[0,1] ])
+	p=nn_model.predict(x)
+	print "pred : ",p
