@@ -32,7 +32,7 @@ class Graph:
 		self.id = input_dim
 		self.oc = optim_config
 		self.lf = loss_fn
-		self.eta = 10
+		self.eta = 0.1
 		self.layers = []
 		self.current_layer_size = input_dim
 		self.output = []
@@ -250,38 +250,56 @@ class Cross_Entropy:
 
 class SVM_loss:
 	# Example class for the ReLU layer. Replicate for other activation types and/or loss functions.
-	def __init__(self, wt):
-		self.w=wt
+	def __init__(self,m):
+		self.margin=m
+		self.current_loss=[]
 
-	def forward(self, yd, x):
-		yp=np.dot(self.w.T, x)
-		np.sum(np.maximum(0,1-yd*yp))
-
-	def backward(self, yd, x):
-		yp=np.dot(self.w.T, x)
-		if yd*yp<1:				
-			return -yd*x
-		else:
-			return 0
-
+	def forward(self, yd, yp):
+		class_index=np.where(yd==1)[1]
+		print class_index
+		loss=[]
+		mask=np.ones(len(yd[0]))
+		for i in xrange(len(class_index)):
+			print class_index[i]
+			mask[class_index[i]]=0	
+			current=np.maximum(0,yp-yp[i][class_index]+self.margin)*mask
+			loss.append(sum(current))
+			self.current_loss.append(current)
+		return sum(loss)	
+		
+	def backward(self, yd):
+		class_index=np.where(yd==1)[1]
+		print class_index
+		grad=np.zeros((len(yd),len(yd[0])))
+		print grad," gggg",self.current_loss
+		for i in xrange(len(yd)):
+			for j in xrange(len(yd[0])):
+				if  j==class_index[i]:
+					grad[i][j]=-np.sum(1.*(self.current_loss[i]>0))
+					print self.current_loss[i]," ccccccccccc"
+				else:
+					grad[i][j]=1*(self.current_loss[i][j]>0)
+		return grad
 if __name__ == "__main__":
 	
-
-	
+	s=SVM_loss(10)
+	print s.forward(np.array([[1,0,0]]),np.array([[13,-7,11]]))
+	#print s.backward(np.array([[13,-7,11]]))
+'''
 	nn_model = DenseNet(2,"","Cross_Entropy")
 
 	nn_model.addlayer('Sigmoid',4)
-	nn_model.addlayer('Sigmoid',2)
-	nn_model.addlayer('Softmax',2)
+	nn_model.addlayer('Linear',2)
+	nn_model.addlayer('SVM',1)
 	x = np.array([  [0,1],
 					[1,0],
 					[1,1],
 					[0,0]  ])
 
-	y = np.array([  [1,0],
-					[1,0],
-					[0,1],
-					[0,1]  ])
+	y = np.array([  [1],
+					[1],
+					[0],
+					[0]  ])
 
 
 	c=np.array([[2,5,3]])
@@ -305,3 +323,4 @@ if __name__ == "__main__":
 	x=np.array([  [0,0],[1,0],[1,1],[0,1] ])
 	p=nn_model.predict(x)
 	print "pred : ",p
+'''

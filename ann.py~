@@ -32,7 +32,7 @@ class Graph:
 		self.id = input_dim
 		self.oc = optim_config
 		self.lf = loss_fn
-		self.eta = 10
+		self.eta = 0.1
 		self.layers = []
 		self.current_layer_size = input_dim
 		self.output = []
@@ -250,38 +250,42 @@ class Cross_Entropy:
 
 class SVM_loss:
 	# Example class for the ReLU layer. Replicate for other activation types and/or loss functions.
-	def __init__(self, wt):
-		self.w=wt
+	def __init__(self,m):
+		self.margin=m
 
-	def forward(self, yd, x):
-		yp=np.dot(self.w.T, x)
-		np.sum(np.maximum(0,1-yd*yp))
-
+	def forward(self, yd, yp):
+		class_index=np.where(yd==1)[1]
+		loss=[]
+		for i in xrange(len(class_index)):
+			loss.append(np.sum(np.maximum(0,yp-yp[class_index]+self.margin))
+		return loss	
+		
 	def backward(self, yd, x):
 		yp=np.dot(self.w.T, x)
 		if yd*yp<1:				
-			return -yd*x
+			return yd*x
 		else:
 			return 0
 
 if __name__ == "__main__":
 	
-
-	
+	s=SVM_loss(10)
+	print s.forward([[13,-7,11]])
+'''
 	nn_model = DenseNet(2,"","Cross_Entropy")
 
 	nn_model.addlayer('Sigmoid',4)
-	nn_model.addlayer('Sigmoid',2)
-	nn_model.addlayer('Softmax',2)
+	nn_model.addlayer('Linear',2)
+	nn_model.addlayer('SVM',1)
 	x = np.array([  [0,1],
 					[1,0],
 					[1,1],
 					[0,0]  ])
 
-	y = np.array([  [1,0],
-					[1,0],
-					[0,1],
-					[0,1]  ])
+	y = np.array([  [1],
+					[1],
+					[0],
+					[0]  ])
 
 
 	c=np.array([[2,5,3]])
@@ -302,8 +306,7 @@ if __name__ == "__main__":
 			nn_model.train(x,y)
 		
 	
-	x=np.array([  [1,0],
-					[1,1],
-					[0,0],[0,1]  ])
+	x=np.array([  [0,0],[1,0],[1,1],[0,1] ])
 	p=nn_model.predict(x)
 	print "pred : ",p
+'''
