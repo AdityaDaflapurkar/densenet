@@ -30,7 +30,7 @@ class Graph:
 	# Computational graph class
 	def __init__(self, input_dim, optim_config, loss_fn):
 		self.id = input_dim
-		self.oc = optim_config
+		self.optimizer = optim_config
 		self.lf = loss_fn
 		self.eta = 1
 		self.layers = []
@@ -98,7 +98,7 @@ class Graph:
 			#print delta,"ddeeellllllllll"
 		
 		elif self.lf=='SVM':			
-			loss=SVM_loss(10)
+			loss=SVM_loss(1)
 			print loss.forward(expected,self.output)," : e.f."
 			delta=loss.backward(expected)
 
@@ -120,7 +120,22 @@ class Graph:
 	def update(self):
 		for i in xrange(len(self.layers)):
 			if  isinstance(self.layers[i], Linear):
-				self.layers[i].w=(self.layers[i].w)+(self.eta*np.dot(self.layers[i].input.T, self.layers[i].delta))/len(self.layers[i].delta)
+				self.layers[i].w=(self.layers[i].w)+self.optimizer.weight_update(self.layers[i].input, self.layers[i].delta)
+
+
+class Optimizer:
+	def __init__(self, learning_rate, momentum_eta = 0.0):
+		self.lr=learning_rate
+		self.eta=momentum_eta
+		self.prev_delta_w=0
+
+	def weight_update(self, prev_output, next_delta):
+		dataset_size=len(next_delta)
+		curr_delta_w=self.lr*np.dot(prev_output.T,next_delta)/dataset_size
+		result_delta_w=curr_delta_w+(self.eta*self.prev_delta_w)
+		self.prev_delta_w=curr_delta_w
+		return result_delta_w
+
 
 class ReLU:
 	# Example class for the ReLU layer. Replicate for other activation types and/or loss functions.
@@ -296,13 +311,15 @@ class SVM_loss:
 					grad[i][j]=1.*(self.current_loss[i][j]>0)
 		#print grad,"gradddddddddddddd"
 		return -grad
+
 if __name__ == "__main__":
 	"""
 	s=SVM_loss(10)
 	print s.forward(np.array([[1,0,0]]),np.array([[13,-7,11]]))
 	print s.backward(np.array([[1,0,0]]))
 '''"""
-	nn_model = DenseNet(2,"","SVM")
+	opti=Optimizer(0.1,0)
+	nn_model = DenseNet(2,opti,"SVM")
 	#nn_model.addlayer('Sigmoid',4)
 	nn_model.addlayer('Linear',3)
 	x = np.array([  [0,1],
@@ -333,7 +350,7 @@ if __name__ == "__main__":
 	#print np.shape(Xi)," ",np.shape(Y)
 	
 
-	for i in xrange(200):
+	for i in xrange(50):
 		#for j in xrange(4):
 			nn_model.train(x,y)
 		
