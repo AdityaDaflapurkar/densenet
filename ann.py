@@ -32,7 +32,7 @@ class Graph:
 		self.id = input_dim
 		self.oc = optim_config
 		self.lf = loss_fn
-		self.eta = 0.1
+		self.eta = 1
 		self.layers = []
 		self.current_layer_size = input_dim
 		self.output = []
@@ -98,8 +98,9 @@ class Graph:
 			#print delta,"ddeeellllllllll"
 		
 		elif self.lf=='SVM':			
-			loss=SVM_loss()
-			delta=loss.backward(expected,self.output)
+			loss=SVM_loss(10)
+			print loss.forward(expected,self.output)," : e.f."
+			delta=loss.backward(expected)
 
 		else:
 			print "Invalid Loss Function ID!!"
@@ -256,50 +257,63 @@ class SVM_loss:
 
 	def forward(self, yd, yp):
 		class_index=np.where(yd==1)[1]
-		print class_index
+		#print class_index
 		loss=[]
-		mask=np.ones(len(yd[0]))
+		
 		for i in xrange(len(class_index)):
-			print class_index[i]
-			mask[class_index[i]]=0	
-			current=np.maximum(0,yp-yp[i][class_index]+self.margin)*mask
-			loss.append(sum(current))
-			self.current_loss.append(current)
-		return sum(loss)	
+			#print class_index[i]
+			mask=np.ones(len(yd[0]))
+			mask[class_index[i]]=0
+			'''
+			print mask,"mmmmmmmmmm"		
+			print yp,"yppppppppp"
+			print yp[i][class_index[i]]
+			print np.maximum(0,yp-yp[i][class_index[i]]+self.margin),"qqqqqqqqqqqq"	
+			'''
+			current=np.maximum(0,yp[i]-yp[i][class_index[i]]+self.margin)*mask
+			loss.append(current)
+		self.current_loss=loss
+		#print np.sum(self.current_loss,axis=1),"looosssssss"
+		'''
+		print loss[0],"loss"
+		'''
+		final_loss=np.sum(self.current_loss,axis=1)
+		#print ,"ooooooooooo"
+		
+		return np.mean(final_loss)	
 		
 	def backward(self, yd):
 		class_index=np.where(yd==1)[1]
-		print class_index
+		#print class_index
 		grad=np.zeros((len(yd),len(yd[0])))
-		print grad," gggg",self.current_loss
+		#print grad," gggg",self.current_loss
 		for i in xrange(len(yd)):
 			for j in xrange(len(yd[0])):
 				if  j==class_index[i]:
 					grad[i][j]=-np.sum(1.*(self.current_loss[i]>0))
-					print self.current_loss[i]," ccccccccccc"
+					#print self.current_loss[i]," ccccccccccc"
 				else:
-					grad[i][j]=1*(self.current_loss[i][j]>0)
-		return grad
+					grad[i][j]=1.*(self.current_loss[i][j]>0)
+		#print grad,"gradddddddddddddd"
+		return -grad
 if __name__ == "__main__":
-	
+	"""
 	s=SVM_loss(10)
 	print s.forward(np.array([[1,0,0]]),np.array([[13,-7,11]]))
-	#print s.backward(np.array([[13,-7,11]]))
-'''
-	nn_model = DenseNet(2,"","Cross_Entropy")
-
-	nn_model.addlayer('Sigmoid',4)
-	nn_model.addlayer('Linear',2)
-	nn_model.addlayer('SVM',1)
+	print s.backward(np.array([[1,0,0]]))
+'''"""
+	nn_model = DenseNet(2,"","SVM")
+	#nn_model.addlayer('Sigmoid',4)
+	nn_model.addlayer('Linear',3)
 	x = np.array([  [0,1],
 					[1,0],
 					[1,1],
 					[0,0]  ])
 
-	y = np.array([  [1],
-					[1],
-					[0],
-					[0]  ])
+	y = np.array([  [1,0],
+					[1,0],
+					[0,1],
+					[0,1]  ])
 
 
 	c=np.array([[2,5,3]])
@@ -313,14 +327,20 @@ if __name__ == "__main__":
 	ti=np.insert(t,0,1,axis=1)
 	tY=np.dot(ti,c.T)
 
+	
+	x=np.array([[0.50,0.40],[0.80,0.30],[0.30,0.80],[-0.40,0.30],[-0.30,0.70],[-0.70,0.20],[0.70,-0.40],[0.50,-0.60],[-0.40,-0.50]])
+	y=np.array([[1,0,0],[1,0,0],[1,0,0],[0,1,0],[0,1,0],[0,1,0],[0,0,1],[0,0,1],[0,0,1]])
 	#print np.shape(Xi)," ",np.shape(Y)
+	
 
-	for i in xrange(10000):
+	for i in xrange(200):
 		#for j in xrange(4):
 			nn_model.train(x,y)
 		
 	
 	x=np.array([  [0,0],[1,0],[1,1],[0,1] ])
+	x=np.array([[0.50,0.40],[-0.40,0.30],[-0.30,0.70],[-0.70,0.20],[0.70,-0.40],[0.50,-0.60],[-0.40,-0.50],[0.80,0.30],[0.30,0.80]])
 	p=nn_model.predict(x)
 	print "pred : ",p
-'''
+
+	
