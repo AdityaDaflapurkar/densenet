@@ -12,13 +12,24 @@ class DenseNet:
 		self.net.addgate(activation, units)
 
 	def train(self, X, Y):
-		if X.ndim==1:			#####TODO checkdim func
+		if self.match_dim(X,Y)==False:
+			print "Dimensions of X and Y don't match"
+			return 0
+
+		if X.ndim==1:
 			X = np.reshape(X,(1,len(X)))
 			Y = np.reshape(Y,(1,len(Y)))
+
 		Y_pred = self.net.forward(X)
 		loss_value = self.net.backward(Y)
 		self.net.update()
 		return loss_value
+
+	def match_dim(self, X, Y):
+		if X.ndim==Y.ndim:
+			return True
+		else:
+			return False 
 
 	def predict(self, X):
 		predicted_value = self.net.forward(X)
@@ -29,7 +40,6 @@ class Optimizer:
 	def __init__(self, learning_rate, momentum_eta = 0.0):
 		self.lr=learning_rate
 		self.eta=momentum_eta
-		#self.prev_delta_w=0
 
 	def weight_update(self, linear):
 		prev_output=linear.input
@@ -111,7 +121,6 @@ class Graph:
 			loss=Cross_Entropy()
 			print loss.forward(expected,self.output)," : e.f."
 			delta=loss.backward(expected,self.output)
-			#print delta,"ddeeellllllllll"
 		
 		elif self.lf=='SVM':			
 			loss=SVM_loss(10)
@@ -120,12 +129,13 @@ class Graph:
 
 		else:
 			print "Invalid Loss Function ID!!"
-		
-		loss_val=np.array([])
+
+		loss_val=delta
+		new_delta=np.array([])
 		linear_not_found=True
 		for i in reversed(xrange(len(self.layers))):
-			loss_val=self.layers[i].backward(delta,linear_not_found)
-			delta=loss_val
+			new_delta=self.layers[i].backward(delta,linear_not_found)
+			delta=new_delta
 			if  isinstance(self.layers[i], Linear):
 				linear_not_found=False
 
@@ -136,7 +146,7 @@ class Graph:
 	def update(self):
 		for i in xrange(len(self.layers)):
 			if  isinstance(self.layers[i], Linear):
-				self.layers[i].w=(self.layers[i].w)-self.optimizer.weight_update(self.layers[i])#-(self.eta*np.dot(self.layers[i].input.T, self.layers[i].delta))/len(self.layers[i].delta)
+				self.layers[i].w=(self.layers[i].w)-self.optimizer.weight_update(self.layers[i])
 				print self.layers[i].w," wwwwwwww"
 
 
@@ -150,11 +160,8 @@ class ReLU:
 		return np.maximum(0,inp)
 		
 	def backward(self, dz,last):
-		#print self.input,"inpppp"
-		#print dz,"dzzzz"
 		if last==False:
 			self.input=np.insert(self.input,0,1,axis=1)
-		#print self.input,"innnnnnnnnn"
 		return 1.*((self.input)>0)*dz
 
 
@@ -169,8 +176,6 @@ class Softmax:
 	def forward(self, input):
 		self.tr_siz=len(input[0])
 		s=np.sum(np.exp(input),axis=1)
-		#print s,"futfiyf"
-		#print np.exp(input),"etbb"
 		self.output = np.exp(input)/np.reshape(s,(len(s),1))
 		return self.output
 
@@ -181,13 +186,10 @@ class Softmax:
 				for j in xrange(len(self.output[0])):
 					der[k][i][j]=self.output[k][i]*(self.kronecker_delta(i, j)-self.output[k][j])
 		
-		#print der,"derrrrrrrrrr"
 		res=[]
 		for k in xrange(len(self.output)):
 			q=np.dot(der[k],dz[k].T)
-			#print q,"qqqqqqqqq"
 			res.append(q)
-		#print np.array(res),"ressssssssssssssss"
 		return np.array(res)
 
 	def kronecker_delta(self, i, j):
@@ -212,7 +214,7 @@ class Sigmoid:
 class Linear:
 	# Example class for the ReLU layer. Replicate for other activation types and/or loss functions.
 	def __init__(self, d, m):
-		self.w = np.random.uniform(-1,1,[d,m])#2*np.random.random((d,m)) - 1
+		self.w = 2*np.random.random((d,m)) - 1
 		self.delta=np.array([])
 		self.input=np.array([])
 		self.prev_delta_w=0
@@ -249,12 +251,9 @@ class L2_loss:
 		pass
 
 	def forward(self, yd, yp):
-		#print ((np.sum(np.mean(yd-yp)))**2)/2
-		#print yd,"dddddddddddddd",yp,"ppppp"
 		return np.mean((np.sum((yp-yd)**2,axis=1)))
 	
 	def backward(self, yd, yp):
-		#print np.shape(yd)," ",np.shape(yp)
 		return 2*(yp-yd)
 
 
@@ -264,14 +263,10 @@ class Cross_Entropy:
 		pass
 
 	def forward(self, yd, yp):
-		#print yd,"lllllllllllll"
-		#print yp,"yyyiiipppiiiiieeeeeeeeee"
-		#print yp-yd,"lossssssssssssssssss"
-		return  np.average(-np.sum(yd*np.log(yp),axis=1))#-(np.sum(yd*np.log(yp)+(1-yd)*np.log(1-yp)))/len(yd)
+		return  np.mean(-np.sum(yd*np.log(yp),axis=1))
 
 	def backward(self, yd, yp):
-		#print yp," ",yd," ",yp*(1-yp)
-		return -yd/yp#(yd-yp)/(yp*(1-yp))
+		return -yd/yp
 
 class SVM_loss:
 	# Example class for the ReLU layer. Replicate for other activation types and/or loss functions.
@@ -281,54 +276,41 @@ class SVM_loss:
 
 	def forward(self, yd, yp):
 		class_index=np.where(yd==1)[1]
-		#print class_index
 		loss=[]
 		
 		for i in xrange(len(class_index)):
-			#print class_index[i]
 			mask=np.ones(len(yd[0]))
 			mask[class_index[i]]=0
-			'''
-			print mask,"mmmmmmmmmm"		
-			print yp,"yppppppppp"
-			print yp[i][class_index[i]]
-			print np.maximum(0,yp-yp[i][class_index[i]]+self.margin),"qqqqqqqqqqqq"	
-			'''
 			current=np.maximum(0,yp[i]-yp[i][class_index[i]]+self.margin)*mask
 			loss.append(current)
 		self.current_loss=loss
-		#print np.sum(self.current_loss,axis=1),"looosssssss"
-		'''
-		print loss[0],"loss"
-		'''
 		final_loss=np.sum(self.current_loss,axis=1)
-		#print ,"ooooooooooo"
+		
 		
 		return np.mean(final_loss)	
 		
 	def backward(self, yd):
 		class_index=np.where(yd==1)[1]
-		#print class_index
+		
 		grad=np.zeros((len(yd),len(yd[0])))
-		#print grad," gggg",self.current_loss
+		
 		for i in xrange(len(yd)):
 			for j in xrange(len(yd[0])):
 				if  j==class_index[i]:
 					grad[i][j]=-np.sum(1.*(self.current_loss[i]>0))
-					#print self.current_loss[i]," ccccccccccc"
 				else:
 					grad[i][j]=1.*(self.current_loss[i][j]>0)
-		#print grad,"gradddddddddddddd"
 		return grad
 
-if __name__ == "__main__":
-	"""
-	s=SVM_loss(10)
-	print s.forward(np.array([[1,0,0]]),np.array([[13,-7,11]]))
-	print s.backward(np.array([[1,0,0]]))
-'''"""
 
-	opti=Optimizer(0.01,0)
+
+
+
+
+if __name__ == "__main__":
+	
+
+	opti=Optimizer(0.01,4)
 	nn_model = DenseNet(2,opti,"L1")
 	nn_model.addlayer('Linear',1)
 	
