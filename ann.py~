@@ -30,9 +30,9 @@ class Graph:
 	# Computational graph class
 	def __init__(self, input_dim, optim_config, loss_fn):
 		self.id = input_dim
-		self.oc = optim_config
+		self.optimizer = optim_config
 		self.lf = loss_fn
-		self.eta = 1
+		self.eta = 10
 		self.layers = []
 		self.current_layer_size = input_dim
 		self.output = []
@@ -48,7 +48,7 @@ class Graph:
 		elif activation=='ReLU':
 			layer=Linear(self.current_layer_size+1,units)
 			self.layers.append(layer)
-			layer=Relu()
+			layer=ReLU()
 			self.layers.append(layer)
 			self.current_layer_size=units
 	
@@ -98,7 +98,7 @@ class Graph:
 			#print delta,"ddeeellllllllll"
 		
 		elif self.lf=='SVM':			
-			loss=SVM_loss(10)
+			loss=SVM_loss(1)
 			print loss.forward(expected,self.output)," : e.f."
 			delta=loss.backward(expected)
 
@@ -120,7 +120,24 @@ class Graph:
 	def update(self):
 		for i in xrange(len(self.layers)):
 			if  isinstance(self.layers[i], Linear):
-				self.layers[i].w=(self.layers[i].w)+(self.eta*np.dot(self.layers[i].input.T, self.layers[i].delta))/len(self.layers[i].delta)
+				self.layers[i].w=(self.layers[i].w)+(self.eta*np.dot(self.layers[i].input.T, self.layers[i].delta))/len(self.layers[i].delta)#self.optimizer.weight_update(self.layers[i])
+
+
+class Optimizer:
+	def __init__(self, learning_rate, momentum_eta = 0.0):
+		self.lr=learning_rate
+		self.eta=momentum_eta
+		#self.prev_delta_w=0
+
+	def weight_update(self, linear):
+		prev_output=linear.input
+		next_delta=linear.delta
+		dataset_size=len(next_delta)
+		curr_delta_w=self.lr*np.dot(prev_output.T,next_delta)/dataset_size
+		result_delta_w=curr_delta_w+(self.eta*linear.prev_delta_w)
+		linear.prev_delta_w=curr_delta_w
+		return result_delta_w
+
 
 class ReLU:
 	# Example class for the ReLU layer. Replicate for other activation types and/or loss functions.
@@ -130,11 +147,17 @@ class ReLU:
 		self.input=np.array([])
 		
 	def forward(self, inp):
-		self.input=inp
+		self.input=np.insert(inp,0,1,axis=1)
+		#print self.input
 		return np.maximum(0,inp)
 		
-	def backward(self, dz):
-		return  1.*((self.input)>0)*dz
+	def backward(self, dz, last):
+		s = self.input
+		#print dz
+		#if last==False:
+			#s=np.insert(s,0,1,axis=0)
+		print 1.*((self.input)>0)*dz,"reludz"
+		return 1.*((self.input)>0)*dz
 
 
 
@@ -194,6 +217,7 @@ class Linear:
 		self.w = 2*np.random.random((d,m)) - 1
 		self.delta=np.array([])
 		self.input=np.array([])
+		self.prev_delta_w=0
 
 	def forward(self, input):
 		input_with_bias=np.insert(input,0,1,axis=1)
@@ -259,25 +283,28 @@ class SVM_loss:
 		class_index=np.where(yd==1)[1]
 		#print class_index
 		loss=[]
-		mask=np.ones((len(yd),len(yd[0])))
-		#print mask,"mmmmmmmmmm"
+		
 		for i in xrange(len(class_index)):
 			#print class_index[i]
+			mask=np.ones(len(yd[0]))
 			mask[class_index[i]]=0
 			'''
+			print mask,"mmmmmmmmmm"		
 			print yp,"yppppppppp"
-			print yp[i][class_index]
+			print yp[i][class_index[i]]
 			print np.maximum(0,yp-yp[i][class_index[i]]+self.margin),"qqqqqqqqqqqq"	
 			'''
-			current=np.maximum(0,yp-yp[i][class_index[i]]+self.margin)*mask
-			loss.append(sum(current))
+			current=np.maximum(0,yp[i]-yp[i][class_index[i]]+self.margin)*mask
+			loss.append(current)
 		self.current_loss=loss
+		#print np.sum(self.current_loss,axis=1),"looosssssss"
 		'''
 		print loss[0],"loss"
 		'''
+		final_loss=np.sum(self.current_loss,axis=1)
 		#print ,"ooooooooooo"
 		
-		return np.mean(np.sum(self.current_loss,axis=1))	
+		return np.mean(final_loss)	
 		
 	def backward(self, yd):
 		class_index=np.where(yd==1)[1]
@@ -292,26 +319,27 @@ class SVM_loss:
 				else:
 					grad[i][j]=1.*(self.current_loss[i][j]>0)
 		#print grad,"gradddddddddddddd"
-		return grad
+		return -grad
+
 if __name__ == "__main__":
 	"""
 	s=SVM_loss(10)
 	print s.forward(np.array([[1,0,0]]),np.array([[13,-7,11]]))
 	print s.backward(np.array([[1,0,0]]))
 '''"""
-	nn_model = DenseNet(2,"","SVM")
-
+	opti=Optimizer(1,0)
+	nn_model = DenseNet(2,"","Cross_Entropy")
 	nn_model.addlayer('Sigmoid',4)
-	nn_model.addlayer('Sigmoid',2)
+	nn_model.addlayer('Softmax',2)
 	x = np.array([  [0,1],
 					[1,0],
 					[1,1],
 					[0,0]  ])
 
-	y = np.array([  [1,0],
-					[1,0],
-					[0,1],
-					[0,1]  ])
+	y = np.array([  [1],
+					[1],
+					[0],
+					[0]  ])
 
 
 	c=np.array([[2,5,3]])
@@ -324,14 +352,21 @@ if __name__ == "__main__":
 	t=np.random.uniform(-1,1,[60,2])
 	ti=np.insert(t,0,1,axis=1)
 	tY=np.dot(ti,c.T)
-
+	'''
+	
+	x=np.array([[0.50,0.40],[0.80,0.30],[0.30,0.80],[-0.40,0.30],[-0.30,0.70],[-0.70,0.20],[0.70,-0.40],[0.50,-0.60],[-0.40,-0.50]])
+	y=np.array([[1,0,0],[1,0,0],[1,0,0],[0,1,0],[0,1,0],[0,1,0],[0,0,1],[0,0,1],[0,0,1]])
 	#print np.shape(Xi)," ",np.shape(Y)
+	'''	
 
-	for i in xrange(10000):
+	for i in xrange(1000):
 		#for j in xrange(4):
 			nn_model.train(x,y)
 		
 	
-	#x=np.array([  [0,0],[1,0],[1,1],[0,1] ])
+	x=np.array([  [0,0],[1,0],[1,1],[0,1] ])
+	#x=np.array([[0.50,0.40],[-0.40,0.30],[-0.30,0.70],[-0.70,0.20],[0.70,-0.40],[0.50,-0.60],[-0.40,-0.50],[0.80,0.30],[0.30,0.80]])
 	p=nn_model.predict(x)
 	print "pred : ",p
+
+	

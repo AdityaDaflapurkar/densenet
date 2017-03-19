@@ -25,18 +25,33 @@ class DenseNet:
 		return predicted_value
 
 
+class Optimizer:
+	def __init__(self, learning_rate, momentum_eta = 0.0):
+		self.lr=learning_rate
+		self.eta=momentum_eta
+		#self.prev_delta_w=0
+
+	def weight_update(self, linear):
+		prev_output=linear.input
+		next_delta=linear.delta
+		dataset_size=len(next_delta)
+		curr_delta_w=self.lr*np.dot(prev_output.T,next_delta)/dataset_size
+		result_delta_w=curr_delta_w#+(self.eta*linear.prev_delta_w)
+		#linear.prev_delta_w=curr_delta_w
+		return result_delta_w
+
 class Graph:
 
 	# Computational graph class
 	def __init__(self, input_dim, optim_config, loss_fn):
 		self.id = input_dim
-		self.optimizer = optim_config
+		self.oc = optim_config
 		self.lf = loss_fn
-		self.eta = 1
 		self.layers = []
 		self.current_layer_size = input_dim
 		self.output = []
-	
+		self.optimizer=optim_config
+		self.eta=0.1
 
 	def addgate(self, activation, units=0):
 
@@ -48,7 +63,7 @@ class Graph:
 		elif activation=='ReLU':
 			layer=Linear(self.current_layer_size+1,units)
 			self.layers.append(layer)
-			layer=Relu()
+			layer=ReLU()
 			self.layers.append(layer)
 			self.current_layer_size=units
 	
@@ -84,11 +99,12 @@ class Graph:
 		delta=np.array([])
 		if self.lf=='L1':
 			loss=L1_loss()
+			print loss.forward(expected,self.output)
 			delta=loss.backward(expected,self.output)
 
 		elif self.lf=='L2':
 			loss=L2_loss()
-			#print loss.forward(expected,self.output)
+			print loss.forward(expected,self.output)," e.f."
 			delta=loss.backward(expected,self.output)
 			
 		elif self.lf=='Cross_Entropy':
@@ -98,7 +114,7 @@ class Graph:
 			#print delta,"ddeeellllllllll"
 		
 		elif self.lf=='SVM':			
-			loss=SVM_loss(1)
+			loss=SVM_loss(10)
 			print loss.forward(expected,self.output)," : e.f."
 			delta=loss.backward(expected)
 
@@ -120,27 +136,12 @@ class Graph:
 	def update(self):
 		for i in xrange(len(self.layers)):
 			if  isinstance(self.layers[i], Linear):
-				self.layers[i].w=(self.layers[i].w)+self.optimizer.weight_update(self.layers[i].input, self.layers[i].delta)
-
-
-class Optimizer:
-	def __init__(self, learning_rate, momentum_eta = 0.0):
-		self.lr=learning_rate
-		self.eta=momentum_eta
-		self.prev_delta_w=0
-
-	def weight_update(self, prev_output, next_delta):
-		dataset_size=len(next_delta)
-		curr_delta_w=self.lr*np.dot(prev_output.T,next_delta)/dataset_size
-		result_delta_w=curr_delta_w+(self.eta*self.prev_delta_w)
-		self.prev_delta_w=curr_delta_w
-		return result_delta_w
+				self.layers[i].w=(self.layers[i].w)-self.optimizer.weight_update(self.layers[i])#-(self.eta*np.dot(self.layers[i].input.T, self.layers[i].delta))/len(self.layers[i].delta)
+				print self.layers[i].w," wwwwwwww"
 
 
 class ReLU:
 	# Example class for the ReLU layer. Replicate for other activation types and/or loss functions.
-
-
 	def __init__(self):
 		self.input=np.array([])
 		
@@ -148,8 +149,13 @@ class ReLU:
 		self.input=inp
 		return np.maximum(0,inp)
 		
-	def backward(self, dz):
-		return  1.*((self.input)>0)*dz
+	def backward(self, dz,last):
+		#print self.input,"inpppp"
+		#print dz,"dzzzz"
+		if last==False:
+			self.input=np.insert(self.input,0,1,axis=1)
+		#print self.input,"innnnnnnnnn"
+		return 1.*((self.input)>0)*dz
 
 
 
@@ -206,9 +212,10 @@ class Sigmoid:
 class Linear:
 	# Example class for the ReLU layer. Replicate for other activation types and/or loss functions.
 	def __init__(self, d, m):
-		self.w = 2*np.random.random((d,m)) - 1
+		self.w = np.random.uniform(-1,1,[d,m])#2*np.random.random((d,m)) - 1
 		self.delta=np.array([])
 		self.input=np.array([])
+		self.prev_delta_w=0
 
 	def forward(self, input):
 		input_with_bias=np.insert(input,0,1,axis=1)
@@ -230,10 +237,10 @@ class L1_loss:
 		pass
 
 	def forward(self, yd, yp):
-		return np.sum(abs(np.mean((yd-yp),axis=1)))
+		return np.mean(abs(np.mean((yd-yp),axis=1)))
 
 	def backward(self, yd, yp):	
-		return -np.nan_to_num(abs(yd-yp)/(yd-yp))
+		return np.nan_to_num(abs(yd-yp)/(yd-yp))
 
 
 class L2_loss:
@@ -243,10 +250,12 @@ class L2_loss:
 
 	def forward(self, yd, yp):
 		#print ((np.sum(np.mean(yd-yp)))**2)/2
-		return ((np.sum(np.mean(yd-yp)))**2)/2
+		#print yd,"dddddddddddddd",yp,"ppppp"
+		return np.mean((np.sum((yp-yd)**2,axis=1)))
+	
 	def backward(self, yd, yp):
 		#print np.shape(yd)," ",np.shape(yp)
-		return yd-yp
+		return 2*(yp-yd)
 
 
 class Cross_Entropy:
@@ -311,53 +320,52 @@ class SVM_loss:
 					grad[i][j]=1.*(self.current_loss[i][j]>0)
 		#print grad,"gradddddddddddddd"
 		return -grad
-
 if __name__ == "__main__":
 	"""
 	s=SVM_loss(10)
 	print s.forward(np.array([[1,0,0]]),np.array([[13,-7,11]]))
 	print s.backward(np.array([[1,0,0]]))
 '''"""
+
 	opti=Optimizer(0.1,0)
-	nn_model = DenseNet(2,opti,"SVM")
+	nn_model = DenseNet(2,opti,"L2")
 	#nn_model.addlayer('Sigmoid',4)
-	nn_model.addlayer('Linear',3)
+	nn_model.addlayer('Linear',1)
+	
 	x = np.array([  [0,1],
 					[1,0],
 					[1,1],
 					[0,0]  ])
 
-	y = np.array([  [1,0],
-					[1,0],
-					[0,1],
-					[0,1]  ])
+	y = np.array([  [1],
+					[1],
+					[0],
+					[0]  ])
 
 
 	c=np.array([[2,5,3]])
-	#error=np.random.uniform(-1,1,[60,1])	
+	error=np.random.uniform(-1,1,[100,1])	
 	
-	X=np.random.uniform(-1,1,[60,2])
+	X=np.random.uniform(-1,1,[100,2])
 	Xi=np.insert(X,0,1,axis=1)
-	Y=np.dot(Xi,c.T) 	  ### y=c0+5*x1+3*x2+error
+	Y=np.dot(Xi,c.T)+error 	  ### y=c0+5*x1+3*x2+error
 
-	t=np.random.uniform(-1,1,[60,2])
+	t=np.random.uniform(-1,1,[100,2])
 	ti=np.insert(t,0,1,axis=1)
-	tY=np.dot(ti,c.T)
+	tY=np.dot(ti,c.T)+error
 
-	
+	'''
 	x=np.array([[0.50,0.40],[0.80,0.30],[0.30,0.80],[-0.40,0.30],[-0.30,0.70],[-0.70,0.20],[0.70,-0.40],[0.50,-0.60],[-0.40,-0.50]])
 	y=np.array([[1,0,0],[1,0,0],[1,0,0],[0,1,0],[0,1,0],[0,1,0],[0,0,1],[0,0,1],[0,0,1]])
 	#print np.shape(Xi)," ",np.shape(Y)
-	
+	'''
 
-	for i in xrange(50):
+	for i in xrange(500):
 		#for j in xrange(4):
-			nn_model.train(x,y)
+			nn_model.train(X,Y)
 		
 	
-	x=np.array([  [0,0],[1,0],[1,1],[0,1] ])
-	x=np.array([[0.50,0.40],[-0.40,0.30],[-0.30,0.70],[-0.70,0.20],[0.70,-0.40],[0.50,-0.60],[-0.40,-0.50],[0.80,0.30],[0.30,0.80]])
-	p=nn_model.predict(x)
-	print "pred : ",p
-
+	x=np.array([  [0,0],[1,1],[0,1],[1,0] ])
+	#x=np.array([[0.50,0.40],[-0.40,0.30],[-0.30,0.70],[-0.70,0.20],[0.70,-0.40],[0.50,-0.60],[-0.40,-0.50],[0.80,0.30],[0.30,0.80]])
 	
+print "pred : ",nn_model.predict(t)-tY
