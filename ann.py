@@ -36,8 +36,8 @@ class Optimizer:
 		next_delta=linear.delta
 		dataset_size=len(next_delta)
 		curr_delta_w=self.lr*np.dot(prev_output.T,next_delta)/dataset_size
-		result_delta_w=curr_delta_w#+(self.eta*linear.prev_delta_w)
-		#linear.prev_delta_w=curr_delta_w
+		result_delta_w=curr_delta_w+(self.eta*linear.prev_delta_w)
+		linear.prev_delta_w=curr_delta_w
 		return result_delta_w
 
 class Graph:
@@ -240,7 +240,7 @@ class L1_loss:
 		return np.mean(abs(np.mean((yd-yp),axis=1)))
 
 	def backward(self, yd, yp):	
-		return np.nan_to_num(abs(yd-yp)/(yd-yp))
+		return -np.nan_to_num(abs(yd-yp)/(yd-yp))
 
 
 class L2_loss:
@@ -271,7 +271,7 @@ class Cross_Entropy:
 
 	def backward(self, yd, yp):
 		#print yp," ",yd," ",yp*(1-yp)
-		return yd/yp#(yd-yp)/(yp*(1-yp))
+		return -yd/yp#(yd-yp)/(yp*(1-yp))
 
 class SVM_loss:
 	# Example class for the ReLU layer. Replicate for other activation types and/or loss functions.
@@ -319,7 +319,8 @@ class SVM_loss:
 				else:
 					grad[i][j]=1.*(self.current_loss[i][j]>0)
 		#print grad,"gradddddddddddddd"
-		return -grad
+		return grad
+
 if __name__ == "__main__":
 	"""
 	s=SVM_loss(10)
@@ -327,20 +328,20 @@ if __name__ == "__main__":
 	print s.backward(np.array([[1,0,0]]))
 '''"""
 
-	opti=Optimizer(0.1,0)
-	nn_model = DenseNet(2,opti,"L2")
-	#nn_model.addlayer('Sigmoid',4)
+	opti=Optimizer(0.01,0)
+	nn_model = DenseNet(2,opti,"L1")
 	nn_model.addlayer('Linear',1)
+	
 	
 	x = np.array([  [0,1],
 					[1,0],
 					[1,1],
 					[0,0]  ])
 
-	y = np.array([  [1],
-					[1],
-					[0],
-					[0]  ])
+	y = np.array([  [1,0],
+					[1,0],
+					[0,1],
+					[0,1]  ])
 
 
 	c=np.array([[2,5,3]])
@@ -368,4 +369,4 @@ if __name__ == "__main__":
 	x=np.array([  [0,0],[1,1],[0,1],[1,0] ])
 	#x=np.array([[0.50,0.40],[-0.40,0.30],[-0.30,0.70],[-0.70,0.20],[0.70,-0.40],[0.50,-0.60],[-0.40,-0.50],[0.80,0.30],[0.30,0.80]])
 	
-print "pred : ",nn_model.predict(t)-tY
+	#print "pred : ",nn_model.predict(t)
