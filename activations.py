@@ -1,6 +1,7 @@
 import numpy as np
 import random
 
+
 class Linear:
 	# Example class for the Linear layer
 	def __init__(self, d, m):
@@ -9,12 +10,10 @@ class Linear:
 		self.input=np.array([])						# input to this linear layer(output of previous activation)
 		self.prev_delta_w=0							# delta_w during previous training iteration(used in momentum optimization)
 
-
 	def forward(self, input):
 		input_with_bias=np.insert(input,0,1,axis=1)
 		self.input=input_with_bias
 		return np.dot(input_with_bias,self.w)
-
 
 	def backward(self, dz, last):
 		if last==False:
@@ -24,6 +23,7 @@ class Linear:
 			self.delta=dz
 			return np.dot(dz,self.w.T)
 
+		
 class ReLU:
 	# Example class for the ReLU layer
 	def __init__(self):
@@ -83,5 +83,3 @@ class Softmax:
 
 	def kronecker_delta(self, i, j):
 		return int(i==j) 
-
-
