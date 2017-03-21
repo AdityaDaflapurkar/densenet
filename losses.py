@@ -40,8 +40,8 @@ class Cross_Entropy:
 class SVM_loss:
 	# Example class for the SVM loss
 	def __init__(self,m):
-		self.margin=m						# Margin of difference between correct and incorrect class scores
-		self.current_loss=[]				# Used during backpropagation
+		self.margin=m				# Margin of difference between correct and incorrect class scores
+		self.current_loss=[]			# Used during backpropagation
 
 	def forward(self, yd, yp):
 		class_index=np.where(yd==1)[1]		# Indices denoting the class of each training example
@@ -68,6 +68,3 @@ class SVM_loss:
 				else:
 					grad[i][j]=1.*(self.current_loss[i][j]>0)
 		return grad
-
-
-
