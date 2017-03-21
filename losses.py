@@ -1,6 +1,7 @@
 import numpy as np
 import random
 
+
 class L1_loss:
 	# Example class for the L1 loss
 	def __init__(self):
