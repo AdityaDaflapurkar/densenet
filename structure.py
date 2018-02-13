@@ -7,12 +7,12 @@ from losses import L1_loss,L2_loss,Cross_Entropy,SVM_loss
 class Optimizer:
 
 	def __init__(self, learning_rate, momentum_eta = 0.0):
-		self.lr=learning_rate							# Learning rate
-		self.eta=momentum_eta							# Momentum
+		self.lr=learning_rate
+		self.eta=momentum_eta
 
 	def weight_update(self, linear):
-		prev_output=linear.input						# output of the layer before current linear layer
-		next_delta=linear.delta							# delta of next layer to the current linear layer
+		prev_output=linear.input
+		next_delta=linear.delta
 		dataset_size=len(next_delta)
 		curr_delta_w=self.lr*np.dot(prev_output.T,next_delta)/dataset_size
 		result_delta_w=curr_delta_w+(self.eta*linear.prev_delta_w)
@@ -26,30 +26,30 @@ class Graph:
 	def __init__(self, input_dim, optim_config, loss_fn):
 		self.id = input_dim
 		self.lf = loss_fn
-		self.layers = []							# List containing all layer objects in the neural net
+		self.layers = []
 		self.current_layer_size = input_dim
-		self.output = []							# Output of the neural net
+		self.output = []
 		self.optimizer=optim_config
 
 	def addgate(self, activation, units=0):
 
 		if activation=='Linear':
-			layer=Linear(self.current_layer_size+1,units)			# bias unit added here
-			self.layers.append(layer)					# weight matrix added, no activation here
+			layer=Linear(self.current_layer_size+1,units)
+			self.layers.append(layer)
 			self.current_layer_size=units
 
 		elif activation=='ReLU':
-			layer=Linear(self.current_layer_size+1,units)			# bias unit added here
-			self.layers.append(layer)					# weight matrix added
+			layer=Linear(self.current_layer_size+1,units)
+			self.layers.append(layer)
 			layer=ReLU()
-			self.layers.append(layer)					# ReLU activation nodes added on weight matrix
+			self.layers.append(layer)
 			self.current_layer_size=units
 	
 		elif activation=='Sigmoid':
-			layer=Linear(self.current_layer_size+1,units) 			# bias unit added here
+			layer=Linear(self.current_layer_size+1,units)
 			self.layers.append(layer)
 			layer=Sigmoid()
-			self.layers.append(layer)					# Sigmoid activation nodes added on weight matrix
+			self.layers.append(layer)
 			self.current_layer_size=units
 	
 		elif activation=='Softmax':
@@ -101,11 +101,11 @@ class Graph:
 
 		
 		new_delta=np.array([])
-		linear_not_found=True						# True if no linear layer encountered yet during backpropagation
+		linear_not_found=True
 		for i in reversed(xrange(len(self.layers))):
 			new_delta=self.layers[i].backward(delta,linear_not_found)
 			delta=new_delta
-			if  isinstance(self.layers[i], Linear): 		# Linear layer encountered for the first time  
+			if  isinstance(self.layers[i], Linear):
 				linear_not_found=False
 
 		return loss_val
@@ -116,7 +116,4 @@ class Graph:
 		for i in xrange(len(self.layers)):
 			if  isinstance(self.layers[i], Linear):
 				self.layers[i].w=(self.layers[i].w)-self.optimizer.weight_update(self.layers[i])
-				#print self.layers[i].w," weights"
-				
-
 
