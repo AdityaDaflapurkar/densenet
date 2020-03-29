@@ -1,5 +1,5 @@
-# densenet-lib
-This is a simple artificial neural network library built in Python and Numpy. The library supports ANNs of arbitrary size as defined by the user. It supports Regression and Classification tasks with the following specifications: 
+# densenet
+An artificial neural network library built using Numpy. The library supports ANNs of arbitrary size as defined by the user. It supports Regression and Classification tasks with the following specifications: 
 
 Activation functions:
 * Sigmoid
